@@ -1,0 +1,174 @@
+service: serverless-tata-test
+frameworkVersion: '2'
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: 20201221
+  region: us-east-1
+  stackName: serverless-tata-test-task
+  apiName: api-serverless-tata-test
+  stage: dev
+  iamRoleStatements:
+    - Effect: "Allow"
+      Action:
+       - dynamodb:Query
+       - dynamodb:Scan
+       - dynamodb:GetItem
+       - dynamodb:PutItem
+       - dynamodb:UpdateItem
+       - dynamodb:DeleteItem
+      Resource:
+        Fn::GetAtt:
+          - Tata
+          - Arn
+
+plugins:
+  - serverless-openapi-documentation
+  - serverless-offline
+
+custom:
+  tableName: "Tata"
+  documentation:
+    models:
+      -
+        name: "setVehicleResponse"
+        description: "Agregar vehículo"
+        contentType: "application/json"
+        schema:
+          type: "object"
+          properties:
+            success:
+              type: "boolean"
+
+      -
+        name: "getVehicleResponse"
+        description: "Obtener vehículo"
+        contentType: "application/json"
+        schema:
+          type: "object"
+          properties:
+            capacidadCarga:
+              type: "string"
+            consumibles:
+              type: "string"
+            costoCreditos:
+              type: "string"
+            creacion:
+              type: "string"
+            tripulacion:
+              type: "string"
+            edicion:
+              type: "string"
+            longitud:
+              type: "string"
+            fabricante:
+              type: "string"
+            velocidadMaximaAtmosfera:
+              type: "string"
+            modelo:
+              type: "string"
+            nombre:
+              type: "string"
+            pasajeros:
+              type: "string"
+            pilotos:
+              type: "array"
+              items:
+                type: string
+            peliculas:
+              type: "array"
+              items:
+                type: string
+            url:
+              type: "string"
+            claseVehiculo:
+              type: "string"
+
+functions:
+  setVehicle:
+    handler: src/handler.setVehicle
+    environment:
+      TABLE: ${self:custom.tableName}
+      SWAPI_ENDPOINT: https://swapi.py4e.com/api
+    events:
+      - http:
+          path: /vehicle/{Id}
+          method: post
+          cors: true
+          documentation:
+            summary: "Agregar un vehículo"
+            description: "Agregar vehículo, de swapi"
+            requestBody:
+              description: "Param Id"
+            requestModels:
+              application/json: "setVehicleResponse"
+            pathParams:
+              - name: Id
+                description: Id vehículo
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: 200
+                responseBody:
+                  description: "Vehículo Agregado"
+                responseModels:
+                  application/json: "setVehicleResponse"
+              - statusCode: 400
+                responseBody:
+                  description: "Error al agregar vehículo"
+                responseModels:
+                  application/json: "setVehicleResponse"
+              - statusCode: 500
+                responseBody:
+                  description: "Error interno al agregar vehículo"
+                responseModels:
+                  application/json: "setVehicleResponse"
+
+  getVehicle:
+    handler: src/handler.getVehicle
+    environment:
+      TABLE: ${self:custom.tableName}
+    events:
+      - http:
+          path: /vehicle/{Id}
+          method: get
+          cors: true
+          documentation:
+            summary: "Obtener una vehículo"
+            description: "Obtener un vehículo por Id"
+            requestBody:
+              description: "Param Id"
+            requestModels:
+              application/json: "getVehicleResponse"
+            pathParams:
+              - name: Id
+                description: Id vehículo
+                schema:
+                  type: string
+            methodResponses:
+              - statusCode: 201
+                responseBody:
+                  description: "Success"
+                responseModels:
+                  application/json: "getVehicleResponse"
+
+resources:
+  Resources:
+    Tata:
+      Type: AWS::DynamoDB::Table
+      Properties:
+        TableName: ${self:custom.tableName}
+        AttributeDefinitions:
+          - AttributeName: partitionKey
+            AttributeType: S
+          - AttributeName: sortKey
+            AttributeType: S
+        KeySchema:
+          - AttributeName: partitionKey
+            KeyType: HASH
+          - AttributeName: sortKey
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 10
+          WriteCapacityUnits: 10
